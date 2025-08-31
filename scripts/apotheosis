@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Apotheosis CLI
+The professional's tool for managing and visualizing dependency graphs.
+"""
+
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+from collections import defaultdict
+
+try:
+    import requests
+except ImportError:
+    print("Error: The 'requests' library is required. Please install it using 'pip install requests'", file=sys.stderr)
+    sys.exit(1)
+
+# --- Configuration & Helpers ---
+CONFIG_FILE = Path.home() / ".config" / "apotheosis" / "config.json"
+
+class TColor:
+    HEADER='\033[95m'; OKBLUE='\033[94m'; OKCYAN='\033[96m'; OKGREEN='\033[92m'
+    WARNING='\033[93m'; FAIL='\033[91m'; ENDC='\033[0m'; BOLD='\033[1m'; UNDERLINE='\033[4m'
+
+def success(msg): print(f"{TColor.OKGREEN}✓{TColor.ENDC} {msg}")
+def error(msg): print(f"{TColor.FAIL}✗{TColor.ENDC} {msg}", file=sys.stderr)
+def info(msg): print(f"{TColor.OKCYAN}i{TColor.ENDC} {msg}")
+def warn(msg): print(f"{TColor.WARNING}!{TColor.ENDC} {msg}")
+def prompt(msg, default=None):
+    prompt_str = f"{TColor.OKBLUE}?{TColor.ENDC} {TColor.BOLD}{msg}{TColor.ENDC}"
+    if default: prompt_str += f" [{default}]"
+    return input(f"{prompt_str}: ")
+def confirm(question): return prompt(f"{question} (y/N)").lower().strip() in ['y', 'yes']
+
+# --- Config Management ---
+def get_default_config(): return {"server_url": "http://localhost:8001"}
+def load_config():
+    defaults = get_default_config()
+    if not CONFIG_FILE.is_file(): return defaults
+    try:
+        with open(CONFIG_FILE, 'r') as f: user_config = json.load(f)
+        defaults.update(user_config)
+        return defaults
+    except (json.JSONDecodeError, IOError):
+        error("Warning: Configuration file is corrupted. Using defaults."); return get_default_config()
+def save_config(config):
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_FILE, 'w') as f: json.dump(config, f, indent=2)
+    success(f"Configuration saved to {CONFIG_FILE}")
+
+# --- Core Logic ---
+
+def _add_graph_to_server(config, graph_path, label):
+    endpoint = f"{config['server_url']}/_localservice/add"
+    payload = {"path": str(graph_path), "label": label}
+    try:
+        info(f"Sending request to {endpoint}...")
+        response = requests.post(endpoint, json=payload, timeout=5)
+        response.raise_for_status()
+        response_data = response.json()
+        if response_data.get("success"):
+            success(response_data.get("message", "Graph added successfully!")); info("Refresh your browser to see the changes.")
+        else:
+            error(f"Server returned an error: {response_data.get('error', 'Unknown error')}"); return False
+        return True
+    except requests.exceptions.RequestException:
+        error(f"Failed to connect to the visualiser server at {config['server_url']}."); error("Please ensure the Flask server (app.py) is running.")
+        if not CONFIG_FILE.is_file(): info(f"You can specify a different server URL by running '{sys.argv[0]} init'.")
+        return False
+    except Exception as e:
+        error(f"An unexpected error occurred: {e}"); return False
+
+# ==============================================================================
+# == PYTHON PORT OF THE NODE.JS CONVERTER SCRIPT
+# ==============================================================================
+NOISE_FQNS = {
+    'knit.Option', 'knit.Option<out T0>', 'T0', 'priority: 1 knit.Option',
+    'knit.DIStubImpl', 'knit.DIGetterStubImpl', 'knit.LibKt', 'kotlin.Lazy<T0>',
+    'knit.Loadable', 'knit.Loadable<out T0>',
+    'kotlin.jvm.functions.Function0<T0>', 'kotlin.jvm.functions.Function0<out T0>'
+}
+
+def _normalize_name(raw_name):
+    if not raw_name or not isinstance(raw_name, str): return None
+    fqn = raw_name.replace('/', '.')
+    if fqn.startswith('priority: 1 '): fqn = fqn[12:]
+
+    generic_match = re.search(r'<([^>]+)>', fqn)
+    if generic_match:
+        base_fqn = fqn.split('<', 1)[0]
+        generic_fqn = generic_match.group(1)
+        base_id = base_fqn.replace('.', '_')
+        generic_id = generic_fqn.replace('.', '_')
+        base_label = base_fqn.split('.')[-1]
+        generic_label = generic_fqn.split('.')[-1]
+        return {'id': f'{base_id}_{generic_id}', 'label': f'{base_label}<{generic_label}>', 'fqn': fqn}
+    else:
+        return {'id': fqn.replace('.', '_'), 'label': fqn.split('.')[-1], 'fqn': fqn}
+
+def _convert_data_to_cytoscape_format(raw_json_data):
+    """
+    Takes raw dependency data and returns a Python list of dictionaries
+    in the Cytoscape.js format. This is a direct port of the Node.js script.
+    """
+    nodes = {} # Using dict as a Map
+    
+    # --- 1. Grand Census: Discover all possible nodes ---
+    for raw_class_name, class_data in raw_json_data.items():
+        class_node_info = _normalize_name(raw_class_name)
+        if class_node_info:
+            nodes[class_node_info['id']] = {**class_node_info, 'type': 'component' if raw_class_name.endswith('Component') else 'class'}
+        
+        if class_data.get('providers'):
+            for provider in class_data['providers']:
+                parts = provider.get('provider', '').split(' -> ')
+                if len(parts) != 2: continue
+                concrete_part, contract_part = parts
+                
+                concrete_info = _normalize_name(concrete_part.split('.<init>')[0])
+                contract_info = _normalize_name(contract_part)
+                
+                if concrete_info: nodes[concrete_info['id']] = {**concrete_info, 'type': 'class'}
+                if contract_info: nodes[contract_info['id']] = {**contract_info, 'type': 'interface'}
+
+                for p in provider.get('parameters', []):
+                    param_info = _normalize_name(p)
+                    if param_info: nodes[param_info['id']] = {**param_info, 'type': 'class'}
+
+    # --- 2. Multi-binding Refinement: Identify and create List nodes ---
+    providers_map = defaultdict(int)
+    for node in nodes.values():
+        raw_class_data = raw_json_data.get(node['fqn'].replace('.', '/'))
+        if raw_class_data and raw_class_data.get('providers'):
+            for p in raw_class_data['providers']:
+                parts = p.get('provider', '').split(' -> ')
+                if len(parts) == 2:
+                    contract_info = _normalize_name(parts[1])
+                    if contract_info: providers_map[contract_info['fqn']] += 1
+    
+    phantom_fqns = set()
+    for fqn, count in providers_map.items():
+        if count > 1:
+            phantom_fqns.add(fqn)
+            list_node_info = _normalize_name(f"java.util.List<{fqn}>")
+            if list_node_info and list_node_info['id'] not in nodes:
+                nodes[list_node_info['id']] = {**list_node_info, 'type': 'multibinding-collection'}
+
+    # --- 3. Final Assembly ---
+    elements = []
+    final_node_map = {}
+
+    # Filter nodes
+    for node in nodes.values():
+        if node['fqn'] in NOISE_FQNS or node['fqn'] in phantom_fqns or '.get' in node['fqn'] or '.<init>' in node['fqn']:
+            continue
+        final_node_map[node['id']] = {'id': node['id'], 'label': node['label'], 'fqn': node['fqn']}
+
+    # Assign parents
+    for raw_class_name, class_data in raw_json_data.items():
+        parent_info = _normalize_name(raw_class_name)
+        if class_data.get('composite') and parent_info and parent_info['id'] in final_node_map:
+            for method_name, child_fqn in class_data['composite'].items():
+                child_info = _normalize_name(child_fqn)
+                if child_info and child_info['id'] in final_node_map:
+                    final_node_map[child_info['id']]['parent'] = parent_info['id']
+    
+    # Add final nodes to elements list
+    for node_data in final_node_map.values():
+        elements.append({'group': 'nodes', 'data': node_data})
+        
+    # Create edges with paranoid checks
+    for raw_class_name, class_data in raw_json_data.items():
+        if class_data.get('providers'):
+            for provider in class_data['providers']:
+                parts = provider.get('provider', '').split(' -> ')
+                if len(parts) != 2: continue
+                concrete_part, contract_part = parts
+
+                if '.<init>' in concrete_part:
+                    concrete_node_info = _normalize_name(concrete_part.split('.<init>')[0])
+                    target_node_info = _normalize_name(contract_part)
+                    
+                    if not concrete_node_info or not target_node_info: continue
+
+                    if target_node_info['fqn'] in phantom_fqns:
+                        target_node_info = _normalize_name(f"java.util.List<{target_node_info['fqn']}>")
+                        if not target_node_info: continue
+
+                    if concrete_node_info['id'] in final_node_map and target_node_info['id'] in final_node_map:
+                        elements.append({'group': 'edges', 'data': {'id': f"{concrete_node_info['id']}->{target_node_info['id']}", 'source': concrete_node_info['id'], 'target': target_node_info['id']}})
+
+                    for param in provider.get('parameters', []):
+                        param_node_info = _normalize_name(param)
+                        if not param_node_info: continue
+                        
+                        # The failsafe: Discover and add ghost nodes
+                        if param_node_info['id'] not in final_node_map and param_node_info['fqn'] not in NOISE_FQNS:
+                            warn(f"Discovered ghost node during edge creation: {param_node_info['fqn']}")
+                            new_node_data = {'id': param_node_info['id'], 'label': param_node_info['label'], 'fqn': param_node_info['fqn']}
+                            elements.append({'group': 'nodes', 'data': new_node_data})
+                            final_node_map[param_node_info['id']] = new_node_data
+                        
+                        if concrete_node_info['id'] in final_node_map and param_node_info['id'] in final_node_map:
+                            elements.append({'group': 'edges', 'data': {'id': f"{concrete_node_info['id']}->{param_node_info['id']}", 'source': concrete_node_info['id'], 'target': param_node_info['id']}})
+    return elements
+
+# ==============================================================================
+# == SUBCOMMAND HANDLERS
+# ==============================================================================
+
+def handle_init(args):
+    info("Initialize or update Apotheosis configuration.")
+    current_config = load_config()
+    if CONFIG_FILE.is_file() and not confirm("Configuration file already exists. Overwrite?"): info("Initialization cancelled."); return
+    server_url = prompt("Enter the Visualizer Server URL", current_config['server_url'])
+    save_config({"server_url": server_url})
+
+def handle_add(args):
+    config = load_config()
+    graph_path_str = args.graph_path or prompt("Graph path?")
+    graph_path = Path(graph_path_str).resolve()
+    label = args.label or prompt("Add label", graph_path.name) or graph_path.name
+    if not graph_path.is_file(): error(f"File not found: {graph_path}"); sys.exit(1)
+    try:
+        with open(graph_path, 'r') as f: json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError): error(f"File is not valid JSON: {graph_path}"); sys.exit(1)
+    info("Preparing to add graph:"); print(f"  {TColor.BOLD}Path:{TColor.ENDC}  {graph_path}\n  {TColor.BOLD}Label:{TColor.ENDC} {label}")
+    if not args.yes and not confirm("Proceed?"): info("Operation cancelled."); return
+    if not _add_graph_to_server(config, graph_path, label): sys.exit(1)
+
+def handle_process(args):
+    config = load_config()
+    input_path_str = args.input_path or prompt("Input file path to process?")
+    input_path = Path(input_path_str).resolve()
+    if not input_path.is_file(): error(f"Input file not found: {input_path}"); sys.exit(1)
+    default_label = f"{input_path.stem} (Processed)"
+    label = args.label or prompt("Add label", default_label) or default_label
+    info("Preparing to process and add graph:"); print(f"  {TColor.BOLD}Input:{TColor.ENDC}  {input_path}\n  {TColor.BOLD}Label:{TColor.ENDC} {label}")
+    if not args.yes and not confirm("Proceed?"): info("Operation cancelled."); return
+    
+    try:
+        info(f"Reading and converting {input_path.name}...")
+        with open(input_path, 'r') as f: raw_data = json.load(f)
+        cytoscape_data = _convert_data_to_cytoscape_format(raw_data)
+        success("File converted successfully.")
+    except (json.JSONDecodeError, UnicodeDecodeError): error(f"Input file is not valid JSON: {input_path}"); sys.exit(1)
+    except Exception as e: error(f"Conversion failed: {e}"); sys.exit(1)
+
+    output_dir = Path.cwd() / ".apotheosis" / "graphs"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_filename = f"{input_path.stem}.cytoscape.json"
+    output_path = output_dir / output_filename
+    with open(output_path, 'w') as f: json.dump(cytoscape_data, f, indent=2)
+    success(f"Processed graph saved to: {output_path}")
+
+    if not _add_graph_to_server(config, output_path, label): sys.exit(1)
+
+# --- Main Entry Point & Argparse ---
+def main():
+    parser = argparse.ArgumentParser(prog="apotheosis", description="Apotheosis CLI", formatter_class=argparse.RawTextHelpFormatter)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    parser_init = subparsers.add_parser("init", help="Create or update the apotheosis configuration file."); parser_init.set_defaults(func=handle_init)
+    parser_add = subparsers.add_parser("add", help="Add a pre-formatted graph to the visualiser."); parser_add.add_argument("graph_path", nargs="?"); parser_add.add_argument("label", nargs="?"); parser_add.add_argument("-y", "--yes", action="store_true"); parser_add.set_defaults(func=handle_add)
+    parser_process = subparsers.add_parser("process", help="Process a raw file into a graph and add it."); parser_process.add_argument("input_path", nargs="?"); parser_process.add_argument("label", nargs="?"); parser_process.add_argument("-y", "--yes", action="store_true"); parser_process.set_defaults(func=handle_process)
+    args = parser.parse_args()
+    args.func(args)
+
+if __name__ == "__main__":
+    main()
