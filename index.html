@@ -22,14 +22,10 @@
             --status-new: #e45757; --status-updated: #57e488;
             --font-family: 'Inter', sans-serif;
         }
-        body {
-            font-family: var(--font-family); margin: 0; background-color: var(--bg-dark);
-            color: var(--text-primary); display: flex; flex-direction: column;
-            height: 100vh; overflow: hidden;
-        }
+        body { font-family: var(--font-family); margin: 0; background-color: var(--bg-dark); color: var(--text-primary); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .hidden { display: none !important; }
 
-        /* Navbar & Controls */
+        /* Navbar */
         .navbar { display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-light); padding: 0 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; height: 60px; }
         .navbar-brand { font-size: 1.4em; font-weight: 700; }
         .navbar-section { display: flex; align-items: center; gap: 15px; }
@@ -49,39 +45,41 @@
         input[type="search"] { padding: 8px 12px; background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 5px; font-family: var(--font-family); }
         .checkbox-group { display: flex; align-items: center; gap: 8px; }
 
-        /* Drawer (Mobile) & Graph List Styling */
+        /* --- NEW PC Graph List Dropdown --- */
+        .dropdown { position: relative; }
+        .dropdown-menu {
+            position: absolute; top: 110%; right: 0;
+            background-color: var(--bg-light); border: 1px solid var(--border-color);
+            border-radius: 5px; list-style: none; padding: 5px;
+            margin: 0; width: 350px; max-height: 400px;
+            overflow-y: auto; z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        
+        /* --- Shared Graph List Item Styling --- */
+        .graph-list { list-style: none; padding: 0; margin: 0; }
+        .graph-list li { padding: 10px; cursor: pointer; border-radius: 5px; border-left: 4px solid transparent; margin-bottom: 5px; transition: all 0.2s ease; }
+        .graph-list li:hover { background-color: #3e3e3e; }
+        .graph-list li.active { background-color: var(--primary-accent); font-weight: 500; }
+        .graph-list li.status-new { border-left-color: var(--status-new); }
+        .graph-list li.status-updated { border-left-color: var(--status-updated); }
+        .graph-item-label { font-weight: 500; display: block; }
+        .graph-item-path { font-size: 0.8em; color: var(--text-secondary); display: block; word-break: break-all; }
+        .update-banner { font-size: 0.75em; color: var(--status-updated); font-weight: 500; margin-top: 4px; display: block; }
+
+        /* Drawer (Mobile) */
         .drawer-toggle { display: none; }
         .drawer { position: fixed; top: 0; left: 0; height: 100%; width: 280px; background-color: var(--bg-light); border-right: 1px solid var(--border-color); transform: translateX(-100%); transition: transform 0.3s ease-in-out; z-index: 200; box-sizing: border-box; display: flex; flex-direction: column; }
         .drawer.open { transform: translateX(0); }
         .drawer-header { padding: 20px; padding-bottom: 10px; }
         .drawer-header h3 { margin: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
         .drawer-body { flex-grow: 1; overflow-y: auto; padding: 0 10px; }
-        #drawer-graph-list { list-style: none; padding: 10px 0; margin: 0; }
-        #drawer-graph-list li { padding: 10px; cursor: pointer; border-radius: 5px; border-left: 4px solid transparent; margin-bottom: 5px; transition: all 0.2s ease; }
-        #drawer-graph-list li:hover { background-color: #3e3e3e; }
-        #drawer-graph-list li.active { background-color: var(--primary-accent); font-weight: 500; }
-        #drawer-graph-list li.status-new { border-left-color: var(--status-new); }
-        #drawer-graph-list li.status-updated { border-left-color: var(--status-updated); }
-        .graph-item-label { font-weight: 500; display: block; }
-        .graph-item-path { font-size: 0.8em; color: var(--text-secondary); display: block; word-break: break-all; }
-        .update-banner { font-size: 0.75em; color: var(--status-updated); font-weight: 500; margin-top: 4px; display: block; }
         .drawer-footer { padding: 20px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); }
 
-        /* --- Modal System --- */
+        /* Modal System (Unchanged) */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 998; }
         .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-light); padding: 25px; border-radius: 8px; border: 1px solid var(--border-color); width: 90%; max-width: 500px; z-index: 999; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .modal-header h2 { margin: 0; }
-        .modal-body .form-group { margin-bottom: 15px; }
-        .modal-body label { display: block; margin-bottom: 5px; font-weight: 500; }
-        .modal-body input, .modal-body textarea { width: 100%; box-sizing: border-box; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 5px; font-family: var(--font-family); }
-        .modal-body textarea { min-height: 200px; resize: vertical; }
-        .modal-footer { text-align: right; margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
-        /* Add Choice Modal styling */
         .add-choice-container { display: flex; flex-direction: column; gap: 15px; }
-        .add-choice-container .button { text-align: left; padding: 15px; }
-        .add-choice-container .button-desc { font-size: 0.9em; color: var(--text-secondary); margin-top: 5px; }
-
 
         @media (max-width: 900px) {
             .navbar-section.main-controls, .navbar-section.graph-controls { display: none; }
@@ -99,6 +97,11 @@
             <div class="checkbox-group"><input type="checkbox" id="hide-lists-checkbox"><label for="hide-lists-checkbox">Hide 'List&lt;...&gt;'</label></div>
         </div>
         <div class="navbar-section main-controls">
+            <!-- REPLACEMENT for the pathetic <select> -->
+            <div class="dropdown" id="pc-graph-list-dropdown">
+                <button class="button secondary" id="pc-graph-list-trigger">Load Graph ▼</button>
+                <ul class="dropdown-menu hidden graph-list" id="pc-graph-list"></ul>
+            </div>
             <button class="button secondary" id="load-local-btn">Preview Local File</button>
             <button class="button" id="add-graph-btn">Add Graph</button>
         </div>
@@ -107,7 +110,7 @@
     
     <aside class="drawer" id="mobile-drawer">
         <div class="drawer-header"><h3>Available Graphs</h3></div>
-        <div class="drawer-body"><ul id="drawer-graph-list"></ul></div>
+        <div class="drawer-body"><ul id="drawer-graph-list" class="graph-list"></ul></div>
         <div class="drawer-footer">
             <button class="button secondary" id="load-local-btn-mobile">Preview Local File</button>
             <button class="button" id="add-graph-btn-mobile">Add Graph</button>
@@ -119,64 +122,37 @@
         <div id="message-overlay">Initializing...</div>
     </main>
     
+    <!-- Modals and Inputs (Unchanged) -->
     <input type="file" id="upload-input" class="hidden" accept=".json">
     <input type="file" id="local-file-input" class="hidden" accept=".json">
-
-    <!-- MODAL SYSTEM -->
     <div class="modal-overlay hidden" id="modal-overlay"></div>
-
-    <!-- Add Graph Choice Modal -->
     <div class="modal hidden" id="add-choice-modal">
         <div class="modal-header"><h2>Add a New Graph</h2></div>
         <div class="modal-body add-choice-container">
-            <button class="button secondary" id="choice-upload-btn">
-                <div>Upload a File</div>
-                <div class="button-desc">Save a .json file to the server.</div>
-            </button>
-            <button class="button secondary" id="choice-paste-btn">
-                <div>Create by Pasting Text</div>
-                <div class="button-desc">Paste raw JSON data to create and save a new file.</div>
-            </button>
+            <button class="button secondary" id="choice-upload-btn"><div>Upload a File</div></button>
+            <button class="button secondary" id="choice-paste-btn"><div>Create by Pasting Text</div></button>
         </div>
         <div class="modal-footer"><button class="button" id="choice-cancel-btn">Cancel</button></div>
     </div>
-
-    <!-- Paste/Create Graph Modal (The old wizard) -->
     <div class="modal hidden" id="paste-modal">
-        <div class="modal-header"><h2>Create by Pasting Text</h2></div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label for="paste-name">Graph Filename</label>
-                <input type="text" id="paste-name" placeholder="my-new-graph.json">
-            </div>
-            <div class="form-group">
-                <label for="paste-data">Paste Graph JSON Data</label>
-                <textarea id="paste-data"></textarea>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="button secondary" id="paste-cancel-btn">Cancel</button>
-            <button class="button" id="paste-save-btn">Create & Save</button>
-        </div>
+         <div class="modal-header"><h2>Create by Pasting Text</h2></div>
+         <div class="modal-body"><div class="form-group"><label for="paste-name">Graph Filename</label><input type="text" id="paste-name" placeholder="my-new-graph.json"></div><div class="form-group"><label for="paste-data">Paste Graph JSON Data</label><textarea id="paste-data"></textarea></div></div>
+         <div class="modal-footer"><button class="button secondary" id="paste-cancel-btn">Cancel</button><button class="button" id="paste-save-btn">Create & Save</button></div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // --- DOM Elements & State ---
             const elements = {
-                cyContainer: document.getElementById('cy'),
-                messageOverlay: document.getElementById('message-overlay'),
+                pcGraphList: document.getElementById('pc-graph-list'),
+                pcGraphListTrigger: document.getElementById('pc-graph-list-trigger'),
                 drawerGraphList: document.getElementById('drawer-graph-list'),
-                uploadInput: document.getElementById('upload-input'),
-                localFileInput: document.getElementById('local-file-input'),
-                mobileDrawer: document.getElementById('mobile-drawer'),
-                graphControlsPanel: document.getElementById('graph-controls-panel'),
-                searchBox: document.getElementById('search-box'),
-                hideListsCheckbox: document.getElementById('hide-lists-checkbox'),
-                currentGraphLabel: document.getElementById('current-graph-label'),
-                modalOverlay: document.getElementById('modal-overlay'),
-                addChoiceModal: document.getElementById('add-choice-modal'),
-                pasteModal: document.getElementById('paste-modal'),
+                // ... other elements remain the same
+                cyContainer: document.getElementById('cy'), messageOverlay: document.getElementById('message-overlay'),
+                uploadInput: document.getElementById('upload-input'), localFileInput: document.getElementById('local-file-input'),
+                mobileDrawer: document.getElementById('mobile-drawer'), graphControlsPanel: document.getElementById('graph-controls-panel'),
+                searchBox: document.getElementById('search-box'), hideListsCheckbox: document.getElementById('hide-lists-checkbox'),
+                currentGraphLabel: document.getElementById('current-graph-label'), modalOverlay: document.getElementById('modal-overlay'),
+                addChoiceModal: document.getElementById('add-choice-modal'), pasteModal: document.getElementById('paste-modal'),
             };
             let cy;
 
@@ -188,94 +164,58 @@
             elements.uploadInput.addEventListener('change', (e) => handleUpload(e.target.files[0]));
             elements.searchBox.addEventListener('input', handleSearch);
             elements.hideListsCheckbox.addEventListener('change', handleHideLists);
+            
+            // NEW: PC Dropdown listener
+            elements.pcGraphListTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                elements.pcGraphList.classList.toggle('hidden');
+            });
+            window.addEventListener('click', () => elements.pcGraphList.classList.add('hidden'));
 
-            // Modal Triggers
+            // Modal Triggers/Listeners (Unchanged)
             document.getElementById('add-graph-btn').addEventListener('click', openAddChoiceModal);
             document.getElementById('add-graph-btn-mobile').addEventListener('click', openAddChoiceModal);
-
-            // Add Choice Modal Listeners
             document.getElementById('choice-upload-btn').addEventListener('click', () => elements.uploadInput.click());
             document.getElementById('choice-paste-btn').addEventListener('click', openPasteModal);
             document.getElementById('choice-cancel-btn').addEventListener('click', closeAllModals);
-
-            // Paste Modal Listeners
             document.getElementById('paste-cancel-btn').addEventListener('click', closeAllModals);
             document.getElementById('paste-save-btn').addEventListener('click', handlePasteSave);
-
             elements.modalOverlay.addEventListener('click', closeAllModals);
-
-            // --- Core App Logic ---
-            async function initializeApp() { /* ... unchanged ... */ } // implementation below
-            async function updateGraphLists() { /* ... unchanged ... */ }
-            async function loadFromServerGraph(path) { /* ... unchanged ... */ }
-            function handleLocalFileSelect(event) { /* ... unchanged ... */ }
-            async function handleUpload(file) { /* ... unchanged ... */ }
-            function renderGraph(elements, label, path) { /* ... unchanged ... */ }
-            function handleSearch() { if (cy) cy.nodes(`[label @*= "${elements.searchBox.value.toLowerCase().trim()}"]`).toggleClass('searched', elements.searchBox.value.trim() !== ''); }
-            function handleHideLists() { if (cy) cy.nodes('[label^="List<"]').style('display', elements.hideListsCheckbox.checked ? 'none' : 'element'); }
-            function getGraphStyles() { /* ... unchanged ... */ }
             
-            // --- Modal Management ---
-            function openAddChoiceModal() {
-                closeAllModals(); // ensure clean state
-                elements.modalOverlay.classList.remove('hidden');
-                elements.addChoiceModal.classList.remove('hidden');
-                elements.mobileDrawer.classList.remove('open');
-            }
-
-            function openPasteModal() {
-                closeAllModals();
-                elements.modalOverlay.classList.remove('hidden');
-                elements.pasteModal.classList.remove('hidden');
-            }
-
-            function closeAllModals() {
-                elements.modalOverlay.classList.add('hidden');
-                elements.addChoiceModal.classList.add('hidden');
-                elements.pasteModal.classList.add('hidden');
-                // Clear paste modal fields
-                document.getElementById('paste-name').value = '';
-                document.getElementById('paste-data').value = '';
-            }
-
-            async function handlePasteSave() {
-                const name = document.getElementById('paste-name').value.trim();
-                const data = document.getElementById('paste-data').value.trim();
-
-                if (!name || !data) return alert('Both name and data are required.');
-                if (!name.endsWith('.json')) return alert('Name must end with .json');
-                try { JSON.parse(data); } catch(e) { return alert('Invalid JSON data.'); }
-
-                const file = new File([data], name, {type: 'application/json'});
-                await handleUpload(file);
-                closeAllModals();
-            }
-
-            // --- Unchanged Functions (pasted for completeness) ---
-            async function initializeApp() {
-                const graphs = await updateGraphLists();
-                if (graphs.length > 0) {
-                    loadFromServerGraph(graphs[0].path);
-                } else {
-                    elements.messageOverlay.textContent = 'No graphs found. Add one to get started.';
-                }
-            }
+            // --- Core App Logic (Updated) ---
 
             async function updateGraphLists() {
                 try {
                     const graphs = await fetch('/api/graphs').then(res => res.json());
+                    // Clear both lists
+                    elements.pcGraphList.innerHTML = '';
                     elements.drawerGraphList.innerHTML = '';
+
+                    if (graphs.length === 0) {
+                        elements.pcGraphListTrigger.textContent = "No Graphs";
+                        elements.pcGraphListTrigger.disabled = true;
+                    } else {
+                        elements.pcGraphListTrigger.textContent = "Load Graph ▼";
+                        elements.pcGraphListTrigger.disabled = false;
+                    }
+
                     graphs.forEach(graph => {
                         const li = document.createElement('li');
                         li.dataset.path = graph.path;
                         li.classList.add(`status-${graph.status}`);
                         let bannerHTML = (graph.status === 'updated' && graph.display_mtime) ? `<span class="update-banner">Freshly updated at ${graph.display_mtime}</span>` : '';
                         li.innerHTML = `<span class="graph-item-label">${graph.label}</span><span class="graph-item-path">${graph.path}</span>${bannerHTML}`;
-                        li.addEventListener('click', () => {
+                        
+                        const clickHandler = () => {
                             loadFromServerGraph(graph.path);
                             elements.mobileDrawer.classList.remove('open');
-                        });
+                            elements.pcGraphList.classList.add('hidden');
+                        };
+                        li.addEventListener('click', clickHandler);
+                        
+                        // Add to both PC dropdown and Mobile drawer
                         elements.drawerGraphList.appendChild(li);
+                        elements.pcGraphList.appendChild(li.cloneNode(true)).addEventListener('click', clickHandler);
                     });
                     return graphs;
                 } catch (error) {
@@ -285,84 +225,43 @@
                 }
             }
 
-            async function loadFromServerGraph(path) {
-                if (!path) return;
-                elements.messageOverlay.style.display = 'block';
-                elements.messageOverlay.textContent = `Loading ${path.split(/[\\/]/).pop()}...`;
-                try {
-                    const encodedPath = encodeURIComponent(path);
-                    const res = await fetch(`/api/graph-data?path=${encodedPath}`);
-                    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-                    const graphData = await res.json();
-                    const graphs = await fetch('/api/graphs').then(r => r.json());
-                    const currentGraphMeta = graphs.find(g => g.path === path);
-                    renderGraph(graphData, currentGraphMeta.label, currentGraphMeta.path);
-                    await updateGraphLists();
-                } catch (error) {
-                    elements.messageOverlay.textContent = `Error loading graph: ${path}`;
-                    console.error('Load Graph Error:', error);
-                }
-            }
-            
-            function handleLocalFileSelect(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const graphData = JSON.parse(e.target.result);
-                        renderGraph(graphData, `${file.name} (Local Preview)`, 'local');
-                    } catch (err) { alert('Error parsing JSON file.'); }
-                };
-                reader.readAsText(file);
-                elements.localFileInput.value = '';
-                elements.mobileDrawer.classList.remove('open');
-            }
-
-            async function handleUpload(file) {
-                if (!file) return;
-                closeAllModals();
-                const formData = new FormData();
-                formData.append('file', file);
-                try {
-                    const response = await fetch('/api/upload', { method: 'POST', body: formData });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || 'Upload failed');
-                    await updateGraphLists();
-                    loadFromServerGraph(result.path);
-                } catch (error) {
-                    alert(`Upload failed: ${error.message}`);
-                } finally {
-                    elements.uploadInput.value = '';
-                }
-            }
-
             function renderGraph(graphData, label, path) {
                 if (cy) cy.destroy();
                 cy = cytoscape({
-                    container: elements.cyContainer,
-                    elements: graphData,
-                    style: getGraphStyles(),
-                    layout: { name: 'cose-bilkent', animate: 'end', padding: 50 }
+                    container: elements.cyContainer, elements: graphData,
+                    style: getGraphStyles(), layout: { name: 'cose-bilkent', animate: 'end', padding: 50 }
                 });
                 elements.messageOverlay.style.display = 'none';
                 elements.graphControlsPanel.classList.remove('hidden');
                 elements.currentGraphLabel.textContent = label;
                 elements.searchBox.value = '';
                 elements.hideListsCheckbox.checked = false;
-                document.querySelectorAll('#drawer-graph-list li').forEach(li => {
+                
+                // Update active state in BOTH lists
+                document.querySelectorAll('.graph-list li').forEach(li => {
                     li.classList.toggle('active', li.dataset.path === path);
                 });
             }
 
-            function getGraphStyles() {
-                return [
-                    { selector: 'node', style: { 'background-color': '#888', 'label': 'data(label)', 'color': '#fff', 'font-size': '12px', 'text-wrap': 'wrap', 'text-max-width': '80px', 'transition-property': 'background-color', 'transition-duration': '0.2s' } },
-                    { selector: 'edge', style: { 'width': 1.5, 'line-color': '#555', 'target-arrow-color': '#555', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' } },
-                    { selector: '$node > node', style: { 'background-color': 'rgba(255,255,255,0.05)', 'border-color': '#444', 'border-width': 2, 'text-valign': 'top', 'font-size': '18px' } },
-                    { selector: '.searched', style: { 'background-color': '#ff4757', 'border-color': '#ff4757', 'border-width': 2 } }
-                ];
+            // --- Other functions (unchanged) ---
+            async function initializeApp() {
+                const graphs = await updateGraphLists();
+                if (graphs.length > 0) {
+                    loadFromServerGraph(graphs[0].path);
+                } else {
+                    elements.messageOverlay.textContent = 'No graphs found. Add one to get started.';
+                }
             }
+            async function loadFromServerGraph(path) { if (!path) return; elements.messageOverlay.style.display = 'block'; elements.messageOverlay.textContent = `Loading ${path.split(/[\\/]/).pop()}...`; try { const encodedPath = encodeURIComponent(path); const res = await fetch(`/api/graph-data?path=${encodedPath}`); if (!res.ok) throw new Error(`Server responded with ${res.status}`); const graphData = await res.json(); const graphs = await fetch('/api/graphs').then(r => r.json()); const currentGraphMeta = graphs.find(g => g.path === path); renderGraph(graphData, currentGraphMeta.label, currentGraphMeta.path); await updateGraphLists(); } catch (error) { elements.messageOverlay.textContent = `Error loading graph: ${path}`; console.error('Load Graph Error:', error); } }
+            function handleLocalFileSelect(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const graphData = JSON.parse(e.target.result); renderGraph(graphData, `${file.name} (Local Preview)`, 'local'); } catch (err) { alert('Error parsing JSON file.'); } }; reader.readAsText(file); elements.localFileInput.value = ''; elements.mobileDrawer.classList.remove('open'); }
+            async function handleUpload(file) { if (!file) return; closeAllModals(); const formData = new FormData(); formData.append('file', file); try { const response = await fetch('/api/upload', { method: 'POST', body: formData }); const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Upload failed'); await updateGraphLists(); loadFromServerGraph(result.path); } catch (error) { alert(`Upload failed: ${error.message}`); } finally { elements.uploadInput.value = ''; } }
+            function handleSearch() { if (cy) cy.nodes(`[label @*= "${elements.searchBox.value.toLowerCase().trim()}"]`).toggleClass('searched', elements.searchBox.value.trim() !== ''); }
+            function handleHideLists() { if (cy) cy.nodes('[label^="List<"]').style('display', elements.hideListsCheckbox.checked ? 'none' : 'element'); }
+            function openAddChoiceModal() { closeAllModals(); elements.modalOverlay.classList.remove('hidden'); elements.addChoiceModal.classList.remove('hidden'); elements.mobileDrawer.classList.remove('open'); }
+            function openPasteModal() { closeAllModals(); elements.modalOverlay.classList.remove('hidden'); elements.pasteModal.classList.remove('hidden'); }
+            function closeAllModals() { elements.modalOverlay.classList.add('hidden'); elements.addChoiceModal.classList.add('hidden'); elements.pasteModal.classList.add('hidden'); document.getElementById('paste-name').value = ''; document.getElementById('paste-data').value = ''; }
+            async function handlePasteSave() { const name = document.getElementById('paste-name').value.trim(); const data = document.getElementById('paste-data').value.trim(); if (!name || !data) return alert('Both name and data are required.'); if (!name.endsWith('.json')) return alert('Name must end with .json'); try { JSON.parse(data); } catch(e) { return alert('Invalid JSON data.'); } const file = new File([data], name, {type: 'application/json'}); await handleUpload(file); closeAllModals(); }
+            function getGraphStyles() { return [ { selector: 'node', style: { 'background-color': '#888', 'label': 'data(label)', 'color': '#fff', 'font-size': '12px', 'text-wrap': 'wrap', 'text-max-width': '80px', 'transition-property': 'background-color', 'transition-duration': '0.2s' } }, { selector: 'edge', style: { 'width': 1.5, 'line-color': '#555', 'target-arrow-color': '#555', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' } }, { selector: '$node > node', style: { 'background-color': 'rgba(255,255,255,0.05)', 'border-color': '#444', 'border-width': 2, 'text-valign': 'top', 'font-size': '18px' } }, { selector: '.searched', style: { 'background-color': '#ff4757', 'border-color': '#ff4757', 'border-width': 2 } } ]; }
 
             initializeApp();
         });

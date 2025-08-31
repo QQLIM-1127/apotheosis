@@ -23,7 +23,7 @@ The Workbench is more than just a file viewer; it's a **stateful manager**. It m
 2.  **Monitor Status:** Automatically detect when a graph file has been updated, gone missing, or is newly added.
 3.  **Provide a Central UI:** Act as a single source of truth for all relevant dependency graphs for a developer or a team.
 
-While the Workbench UI allows for manual interaction, it is designed to be primarily controlled by its companion tool, the **[`apotheosis` CLI](link/to/your/cli/readme.md)**. The CLI is the professional's "power tool" for this workbench.
+While the Workbench UI allows for manual interaction, it is designed to be primarily controlled by its companion tool, the **`apotheosis` CLI**. The CLI is the professional's "power tool" for this workbench.
 
 ## Features
 
@@ -100,7 +100,7 @@ There are three primary ways to add graphs to the workbench, listed in order of 
 
 This is the primary and most powerful method. The CLI allows you to add graphs from any location and process raw dependency files (like `build/knit.json`) directly from your project's root directory.
 
-**See the [Apotheosis CLI Documentation](link/to/your/cli/readme.md) for full installation and usage instructions.**
+**See the [Apotheosis CLI Documentation] for full installation and usage instructions.**
 
 **Example:**
 ```bash
