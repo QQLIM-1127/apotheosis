@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Workbench</title>
+    
+    <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/layout-base/layout-base.js"></script>
+    <script src="https://unpkg.com/cose-base/cose-base.js"></script>
+    <script src="https://unpkg.com/cytoscape-cose-bilkent/cytoscape-cose-bilkent.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #1e1e1e; --bg-light: #2d2d2d;
+            --text-primary: #d4d4d4; --text-secondary: #a0a0a0;
+            --primary-accent: #007acc; --border-color: #444;
+            --status-new: #e45757; --status-updated: #57e488;
+            --font-family: 'Inter', sans-serif;
+        }
+        body {
+            font-family: var(--font-family); margin: 0; background-color: var(--bg-dark);
+            color: var(--text-primary); display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
+        }
+        .hidden { display: none !important; }
+
+        /* Navbar & Controls */
+        .navbar { display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-light); padding: 0 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; height: 60px; }
+        .navbar-brand { font-size: 1.4em; font-weight: 700; }
+        .navbar-section { display: flex; align-items: center; gap: 15px; }
+        .graph-controls { flex-grow: 1; justify-content: center; gap: 25px; }
+        #current-graph-label { font-size: 1.1em; font-weight: 500; color: var(--text-secondary); }
+
+        /* Main Content */
+        .main-content { flex-grow: 1; position: relative; }
+        #cy { width: 100%; height: 100%; }
+        #message-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5em; color: #888; z-index: 100; pointer-events: none; }
+
+        /* UI Components */
+        .button { padding: 8px 15px; font-size: 14px; background-color: var(--primary-accent); border: 1px solid var(--primary-accent); color: #fff; border-radius: 5px; cursor: pointer; transition: all 0.2s ease; }
+        .button:hover { background-color: #005a9e; }
+        .button.secondary { background-color: #3e3e3e; border-color: #555; }
+        .button.secondary:hover { background-color: #555; }
+        input[type="search"] { padding: 8px 12px; background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 5px; font-family: var(--font-family); }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; }
+
+        /* Drawer (Mobile) & Graph List Styling */
+        .drawer-toggle { display: none; }
+        .drawer { position: fixed; top: 0; left: 0; height: 100%; width: 280px; background-color: var(--bg-light); border-right: 1px solid var(--border-color); transform: translateX(-100%); transition: transform 0.3s ease-in-out; z-index: 200; box-sizing: border-box; display: flex; flex-direction: column; }
+        .drawer.open { transform: translateX(0); }
+        .drawer-header { padding: 20px; padding-bottom: 10px; }
+        .drawer-header h3 { margin: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .drawer-body { flex-grow: 1; overflow-y: auto; padding: 0 10px; }
+        #drawer-graph-list { list-style: none; padding: 10px 0; margin: 0; }
+        #drawer-graph-list li { padding: 10px; cursor: pointer; border-radius: 5px; border-left: 4px solid transparent; margin-bottom: 5px; transition: all 0.2s ease; }
+        #drawer-graph-list li:hover { background-color: #3e3e3e; }
+        #drawer-graph-list li.active { background-color: var(--primary-accent); font-weight: 500; }
+        #drawer-graph-list li.status-new { border-left-color: var(--status-new); }
+        #drawer-graph-list li.status-updated { border-left-color: var(--status-updated); }
+        .graph-item-label { font-weight: 500; display: block; }
+        .graph-item-path { font-size: 0.8em; color: var(--text-secondary); display: block; word-break: break-all; }
+        .update-banner { font-size: 0.75em; color: var(--status-updated); font-weight: 500; margin-top: 4px; display: block; }
+        .drawer-footer { padding: 20px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); }
+
+        /* --- Modal System --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 998; }
+        .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-light); padding: 25px; border-radius: 8px; border: 1px solid var(--border-color); width: 90%; max-width: 500px; z-index: 999; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { margin: 0; }
+        .modal-body .form-group { margin-bottom: 15px; }
+        .modal-body label { display: block; margin-bottom: 5px; font-weight: 500; }
+        .modal-body input, .modal-body textarea { width: 100%; box-sizing: border-box; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 5px; font-family: var(--font-family); }
+        .modal-body textarea { min-height: 200px; resize: vertical; }
+        .modal-footer { text-align: right; margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
+        /* Add Choice Modal styling */
+        .add-choice-container { display: flex; flex-direction: column; gap: 15px; }
+        .add-choice-container .button { text-align: left; padding: 15px; }
+        .add-choice-container .button-desc { font-size: 0.9em; color: var(--text-secondary); margin-top: 5px; }
+
+
+        @media (max-width: 900px) {
+            .navbar-section.main-controls, .navbar-section.graph-controls { display: none; }
+            .drawer-toggle { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="navbar-brand">Graph Workbench</div>
+        <div class="navbar-section graph-controls hidden" id="graph-controls-panel">
+            <div id="current-graph-label"></div>
+            <input type="search" id="search-box" placeholder="Search nodes...">
+            <div class="checkbox-group"><input type="checkbox" id="hide-lists-checkbox"><label for="hide-lists-checkbox">Hide 'List&lt;...&gt;'</label></div>
+        </div>
+        <div class="navbar-section main-controls">
+            <button class="button secondary" id="load-local-btn">Preview Local File</button>
+            <button class="button" id="add-graph-btn">Add Graph</button>
+        </div>
+        <button class="button drawer-toggle" id="drawer-toggle-btn">☰</button>
+    </nav>
+    
+    <aside class="drawer" id="mobile-drawer">
+        <div class="drawer-header"><h3>Available Graphs</h3></div>
+        <div class="drawer-body"><ul id="drawer-graph-list"></ul></div>
+        <div class="drawer-footer">
+            <button class="button secondary" id="load-local-btn-mobile">Preview Local File</button>
+            <button class="button" id="add-graph-btn-mobile">Add Graph</button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div id="cy"></div>
+        <div id="message-overlay">Initializing...</div>
+    </main>
+    
+    <input type="file" id="upload-input" class="hidden" accept=".json">
+    <input type="file" id="local-file-input" class="hidden" accept=".json">
+
+    <!-- MODAL SYSTEM -->
+    <div class="modal-overlay hidden" id="modal-overlay"></div>
+
+    <!-- Add Graph Choice Modal -->
+    <div class="modal hidden" id="add-choice-modal">
+        <div class="modal-header"><h2>Add a New Graph</h2></div>
+        <div class="modal-body add-choice-container">
+            <button class="button secondary" id="choice-upload-btn">
+                <div>Upload a File</div>
+                <div class="button-desc">Save a .json file to the server.</div>
+            </button>
+            <button class="button secondary" id="choice-paste-btn">
+                <div>Create by Pasting Text</div>
+                <div class="button-desc">Paste raw JSON data to create and save a new file.</div>
+            </button>
+        </div>
+        <div class="modal-footer"><button class="button" id="choice-cancel-btn">Cancel</button></div>
+    </div>
+
+    <!-- Paste/Create Graph Modal (The old wizard) -->
+    <div class="modal hidden" id="paste-modal">
+        <div class="modal-header"><h2>Create by Pasting Text</h2></div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="paste-name">Graph Filename</label>
+                <input type="text" id="paste-name" placeholder="my-new-graph.json">
+            </div>
+            <div class="form-group">
+                <label for="paste-data">Paste Graph JSON Data</label>
+                <textarea id="paste-data"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="button secondary" id="paste-cancel-btn">Cancel</button>
+            <button class="button" id="paste-save-btn">Create & Save</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- DOM Elements & State ---
+            const elements = {
+                cyContainer: document.getElementById('cy'),
+                messageOverlay: document.getElementById('message-overlay'),
+                drawerGraphList: document.getElementById('drawer-graph-list'),
+                uploadInput: document.getElementById('upload-input'),
+                localFileInput: document.getElementById('local-file-input'),
+                mobileDrawer: document.getElementById('mobile-drawer'),
+                graphControlsPanel: document.getElementById('graph-controls-panel'),
+                searchBox: document.getElementById('search-box'),
+                hideListsCheckbox: document.getElementById('hide-lists-checkbox'),
+                currentGraphLabel: document.getElementById('current-graph-label'),
+                modalOverlay: document.getElementById('modal-overlay'),
+                addChoiceModal: document.getElementById('add-choice-modal'),
+                pasteModal: document.getElementById('paste-modal'),
+            };
+            let cy;
+
+            // --- Event Listeners ---
+            document.getElementById('drawer-toggle-btn').addEventListener('click', () => elements.mobileDrawer.classList.toggle('open'));
+            document.getElementById('load-local-btn').addEventListener('click', () => elements.localFileInput.click());
+            document.getElementById('load-local-btn-mobile').addEventListener('click', () => elements.localFileInput.click());
+            elements.localFileInput.addEventListener('change', handleLocalFileSelect);
+            elements.uploadInput.addEventListener('change', (e) => handleUpload(e.target.files[0]));
+            elements.searchBox.addEventListener('input', handleSearch);
+            elements.hideListsCheckbox.addEventListener('change', handleHideLists);
+
+            // Modal Triggers
+            document.getElementById('add-graph-btn').addEventListener('click', openAddChoiceModal);
+            document.getElementById('add-graph-btn-mobile').addEventListener('click', openAddChoiceModal);
+
+            // Add Choice Modal Listeners
+            document.getElementById('choice-upload-btn').addEventListener('click', () => elements.uploadInput.click());
+            document.getElementById('choice-paste-btn').addEventListener('click', openPasteModal);
+            document.getElementById('choice-cancel-btn').addEventListener('click', closeAllModals);
+
+            // Paste Modal Listeners
+            document.getElementById('paste-cancel-btn').addEventListener('click', closeAllModals);
+            document.getElementById('paste-save-btn').addEventListener('click', handlePasteSave);
+
+            elements.modalOverlay.addEventListener('click', closeAllModals);
+
+            // --- Core App Logic ---
+            async function initializeApp() { /* ... unchanged ... */ } // implementation below
+            async function updateGraphLists() { /* ... unchanged ... */ }
+            async function loadFromServerGraph(path) { /* ... unchanged ... */ }
+            function handleLocalFileSelect(event) { /* ... unchanged ... */ }
+            async function handleUpload(file) { /* ... unchanged ... */ }
+            function renderGraph(elements, label, path) { /* ... unchanged ... */ }
+            function handleSearch() { if (cy) cy.nodes(`[label @*= "${elements.searchBox.value.toLowerCase().trim()}"]`).toggleClass('searched', elements.searchBox.value.trim() !== ''); }
+            function handleHideLists() { if (cy) cy.nodes('[label^="List<"]').style('display', elements.hideListsCheckbox.checked ? 'none' : 'element'); }
+            function getGraphStyles() { /* ... unchanged ... */ }
+            
+            // --- Modal Management ---
+            function openAddChoiceModal() {
+                closeAllModals(); // ensure clean state
+                elements.modalOverlay.classList.remove('hidden');
+                elements.addChoiceModal.classList.remove('hidden');
+                elements.mobileDrawer.classList.remove('open');
+            }
+
+            function openPasteModal() {
+                closeAllModals();
+                elements.modalOverlay.classList.remove('hidden');
+                elements.pasteModal.classList.remove('hidden');
+            }
+
+            function closeAllModals() {
+                elements.modalOverlay.classList.add('hidden');
+                elements.addChoiceModal.classList.add('hidden');
+                elements.pasteModal.classList.add('hidden');
+                // Clear paste modal fields
+                document.getElementById('paste-name').value = '';
+                document.getElementById('paste-data').value = '';
+            }
+
+            async function handlePasteSave() {
+                const name = document.getElementById('paste-name').value.trim();
+                const data = document.getElementById('paste-data').value.trim();
+
+                if (!name || !data) return alert('Both name and data are required.');
+                if (!name.endsWith('.json')) return alert('Name must end with .json');
+                try { JSON.parse(data); } catch(e) { return alert('Invalid JSON data.'); }
+
+                const file = new File([data], name, {type: 'application/json'});
+                await handleUpload(file);
+                closeAllModals();
+            }
+
+            // --- Unchanged Functions (pasted for completeness) ---
+            async function initializeApp() {
+                const graphs = await updateGraphLists();
+                if (graphs.length > 0) {
+                    loadFromServerGraph(graphs[0].path);
+                } else {
+                    elements.messageOverlay.textContent = 'No graphs found. Add one to get started.';
+                }
+            }
+
+            async function updateGraphLists() {
+                try {
+                    const graphs = await fetch('/api/graphs').then(res => res.json());
+                    elements.drawerGraphList.innerHTML = '';
+                    graphs.forEach(graph => {
+                        const li = document.createElement('li');
+                        li.dataset.path = graph.path;
+                        li.classList.add(`status-${graph.status}`);
+                        let bannerHTML = (graph.status === 'updated' && graph.display_mtime) ? `<span class="update-banner">Freshly updated at ${graph.display_mtime}</span>` : '';
+                        li.innerHTML = `<span class="graph-item-label">${graph.label}</span><span class="graph-item-path">${graph.path}</span>${bannerHTML}`;
+                        li.addEventListener('click', () => {
+                            loadFromServerGraph(graph.path);
+                            elements.mobileDrawer.classList.remove('open');
+                        });
+                        elements.drawerGraphList.appendChild(li);
+                    });
+                    return graphs;
+                } catch (error) {
+                    elements.messageOverlay.textContent = 'Error fetching graph list.';
+                    console.error('Update List Error:', error);
+                    return [];
+                }
+            }
+
+            async function loadFromServerGraph(path) {
+                if (!path) return;
+                elements.messageOverlay.style.display = 'block';
+                elements.messageOverlay.textContent = `Loading ${path.split(/[\\/]/).pop()}...`;
+                try {
+                    const encodedPath = encodeURIComponent(path);
+                    const res = await fetch(`/api/graph-data?path=${encodedPath}`);
+                    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+                    const graphData = await res.json();
+                    const graphs = await fetch('/api/graphs').then(r => r.json());
+                    const currentGraphMeta = graphs.find(g => g.path === path);
+                    renderGraph(graphData, currentGraphMeta.label, currentGraphMeta.path);
+                    await updateGraphLists();
+                } catch (error) {
+                    elements.messageOverlay.textContent = `Error loading graph: ${path}`;
+                    console.error('Load Graph Error:', error);
+                }
+            }
+            
+            function handleLocalFileSelect(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const graphData = JSON.parse(e.target.result);
+                        renderGraph(graphData, `${file.name} (Local Preview)`, 'local');
+                    } catch (err) { alert('Error parsing JSON file.'); }
+                };
+                reader.readAsText(file);
+                elements.localFileInput.value = '';
+                elements.mobileDrawer.classList.remove('open');
+            }
+
+            async function handleUpload(file) {
+                if (!file) return;
+                closeAllModals();
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    const response = await fetch('/api/upload', { method: 'POST', body: formData });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || 'Upload failed');
+                    await updateGraphLists();
+                    loadFromServerGraph(result.path);
+                } catch (error) {
+                    alert(`Upload failed: ${error.message}`);
+                } finally {
+                    elements.uploadInput.value = '';
+                }
+            }
+
+            function renderGraph(graphData, label, path) {
+                if (cy) cy.destroy();
+                cy = cytoscape({
+                    container: elements.cyContainer,
+                    elements: graphData,
+                    style: getGraphStyles(),
+                    layout: { name: 'cose-bilkent', animate: 'end', padding: 50 }
+                });
+                elements.messageOverlay.style.display = 'none';
+                elements.graphControlsPanel.classList.remove('hidden');
+                elements.currentGraphLabel.textContent = label;
+                elements.searchBox.value = '';
+                elements.hideListsCheckbox.checked = false;
+                document.querySelectorAll('#drawer-graph-list li').forEach(li => {
+                    li.classList.toggle('active', li.dataset.path === path);
+                });
+            }
+
+            function getGraphStyles() {
+                return [
+                    { selector: 'node', style: { 'background-color': '#888', 'label': 'data(label)', 'color': '#fff', 'font-size': '12px', 'text-wrap': 'wrap', 'text-max-width': '80px', 'transition-property': 'background-color', 'transition-duration': '0.2s' } },
+                    { selector: 'edge', style: { 'width': 1.5, 'line-color': '#555', 'target-arrow-color': '#555', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' } },
+                    { selector: '$node > node', style: { 'background-color': 'rgba(255,255,255,0.05)', 'border-color': '#444', 'border-width': 2, 'text-valign': 'top', 'font-size': '18px' } },
+                    { selector: '.searched', style: { 'background-color': '#ff4757', 'border-color': '#ff4757', 'border-width': 2 } }
+                ];
+            }
+
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
